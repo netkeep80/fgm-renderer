@@ -1,6 +1,6 @@
 format: repo-guard/requirement-v1
 id: FGMV-PRODUCT-000
-normative: "### FGMV-PRODUCT-000 — Cross-platform renderer for FGM procedural 3D worlds, with WebGPU and a browser target. This is accepted project direction, not evidence of a working implementation."
+normative: "### FGMV-PRODUCT-000 — Продукт должен интерпретировать FGM как производное трёхмерное представление с управляемой экранной детализацией, ортографической камерой и возможным свободным поворотом, не изменяя авторитетную модель мира."
 lifecycle:
   accepted: true
   current: true
