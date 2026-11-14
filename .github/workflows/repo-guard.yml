@@ -39,6 +39,8 @@ jobs:
           unzip -q "$RUNNER_TEMP/wgpu.zip" -d "$RUNNER_TEMP/wgpu"
           cmake -S . -B build/native -DCMAKE_BUILD_TYPE=Release -DWGPU_ROOT="$RUNNER_TEMP/wgpu"
           cmake --build build/native --parallel 2
+          build/native/fgm_v02_semantic tests/fixtures/v02-scenes.txt > build/v02/c05-semantic.json
+          node -e 'const d=require("./build/v02/c05-semantic.json");if(!d.ok||d.probes<33000||d.boundary_probes<100||d.scenes!==10)process.exit(1)'
           mkdir -p "$RUNNER_TEMP/fgm-runtime"
           XDG_RUNTIME_DIR="$RUNNER_TEMP/fgm-runtime" build/native/fgm_boot web/sphere.fgm.json web/scene.wgsl build/native/sphere.ppm
 
@@ -61,6 +63,7 @@ jobs:
             build/browser.png
             build/v02/report.json
             build/v02/hits.csv
+            build/v02/c05-semantic.json
           if-no-files-found: error
       - name: RepoGuard exact snapshot transition
         uses: netkeep80/repo-guard@74db97791e6da8a75287164f0d0b41579108f114
