@@ -1,0 +1,22 @@
+{
+  "format": "fgm-package/1",
+  "interpreter": "fgm-0/1",
+  "generation": {"algorithm": "boot", "version": "1.0.0", "parameters": {}, "resources": {}},
+  "model": {
+    "seed": "0000000000000000000000000000000000000000000000000000000000000000",
+    "volumes": {},
+    "contributions": [{
+      "id": "sphere", "material": "stone", "priority": 0,
+      "field": {
+        "op": "program", "parameters": {},
+        "program": {
+          "version": "fgm-0", "root": "sphere",
+          "nodes": [
+            {"id": "radius", "op": "constant", "type": "length", "value": 1.06},
+            {"id": "sphere", "op": "sphere", "radius": "radius"}
+          ]
+        }
+      }
+    }]
+  }
+}

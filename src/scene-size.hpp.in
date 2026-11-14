@@ -1,0 +1,5 @@
+#pragma once
+
+#include <cstddef>
+
+inline constexpr std::size_t scene_size = @BOOT_SIZE@;
