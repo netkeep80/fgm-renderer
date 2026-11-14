@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <iomanip>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <sstream>
@@ -107,7 +108,10 @@ std::vector<Negative> mutations(const std::vector<rvi::Scene>& scenes) {
   const auto edges=named(scenes,"box_edges");
   for(int i=0;i<4;++i)for(int j=0;j<4;++j)for(int k=0;k<4;++k)
     (void)rvi::render_cell(edges,center(),4,i,j,k,&duplicates,true);
-  checks.push_back({"shared_face_double_count",duplicates>1});
+  int owned=0;
+  for(int i=0;i<4;++i)for(int j=0;j<4;++j)for(int k=0;k<4;++k)
+    (void)rvi::render_cell(edges,center(),4,i,j,k,&owned,false);
+  checks.push_back({"shared_face_double_count",duplicates>owned && owned==2});
   const auto overlap=named(scenes,"projection_overlap");
   const auto front=reference(overlap,center());
   checks.push_back({"priority_as_depth",front.found && front.fragment=="near_sphere" &&
@@ -115,8 +119,12 @@ std::vector<Negative> mutations(const std::vector<rvi::Scene>& scenes) {
   const auto subpixel=named(scenes,"subpixel");
   const auto l=reference(subpixel,rvi::global_ray({0,0.1,33,33},{16,16,0.25,0.5}));
   const auto r=reference(subpixel,rvi::global_ray({0,0.1,33,33},{16,16,0.75,0.5}));
+  const auto pixel=rvi::render_pixel(subpixel,{0,0.1,33,33},16,16,2,
+                                    {{0.25,0.5},{0.75,0.5}});
   checks.push_back({"early_coverage_average",l.found && r.found && l.fragment!=r.fragment &&
-    (int(l.found)+int(r.found))/2.0!=0.5});
+    (int(l.found)+int(r.found))/2.0!=0.5 &&
+    pixel.coverage==1.0 && pixel.samples.size()==2 &&
+    equal(pixel.samples[0],l) && equal(pixel.samples[1],r)});
   const auto tie=reference(named(scenes,"equal_depth"),center());
   checks.push_back({"reverse_tie",tie.found && tie.fragment=="a_tie" &&
       !equal(tie,{true,tie.depth,"z_tie",tie.material})});
@@ -132,13 +140,20 @@ std::vector<Negative> mutations(const std::vector<rvi::Scene>& scenes) {
   try {(void)rvi::compose({}, {true,std::numeric_limits<double>::quiet_NaN(),"bad","bad"});}
   catch(const std::invalid_argument&) {rejects=true;}
   checks.push_back({"nan_depth_rejection",rejects});
+  const auto continuous=named(scenes,"crossing_inside");
+  checks.push_back({"internal_cube_not_a_surface",
+                    !rvi::render_cell(continuous,center(),4,2,2,2).found});
   return checks;
 }
 } // namespace
 
 int main(int argc,char** argv) {
   try {
-    if(argc!=2)throw std::runtime_error("usage: v02-verify fixtures-file");
+    if(argc!=3)throw std::runtime_error("usage: v02-verify fixtures-file hits.csv");
+    std::ofstream trace(argv[2],std::ios::binary);
+    if(!trace)throw std::runtime_error("E_TRACE_FILE");
+    trace<<std::setprecision(17)
+         <<"scene,view,scale,x,y,offset_x,offset_y,mode,hit,depth,fragment,material\n";
     const auto scenes=rvi::load_scenes(argv[1]);
     std::ostringstream reports;
     reports<<std::setprecision(17);
@@ -157,6 +172,18 @@ int main(int argc,char** argv) {
         const auto a=rvi::render_recursive(scene,ray,1);
         const auto b=rvi::render_recursive(scene,ray,2);
         const auto swapped=rvi::render_recursive(scene,ray,2,true);
+        const auto emit=[&](const char* mode,const rvi::Hit& hit) {
+          trace<<scene.id<<","<<view<<","<<scale<<","<<x<<","<<y<<","
+               <<offset[0]<<","<<offset[1]<<","<<mode<<","
+               <<(hit.found?"1":"0")<<",";
+          if(hit.found)trace<<hit.depth<<","<<hit.fragment<<","<<hit.material;
+          else trace<<",,";
+          trace<<"\n";
+        };
+        emit("direct",truth);
+        emit("eight",a);
+        emit("sixtyfour",b);
+        emit("permuted",swapped);
         double e1=0,e2=0,e3=0;
         const bool ok=equal(truth,a,&e1)&&equal(truth,b,&e2)&&equal(truth,swapped,&e3);
         local_worst=std::max({local_worst,e1,e2,e3});

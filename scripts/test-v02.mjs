@@ -17,13 +17,16 @@ const inputs = await Promise.all([
 const digest = data => createHash("sha256").update(data).digest("hex");
 let stdout;
 try {
-  stdout = execFileSync("build/v02/v02-verify", ["tests/fixtures/v02-scenes.txt"],
+  stdout = execFileSync("build/v02/v02-verify", ["tests/fixtures/v02-scenes.txt", "build/v02/hits.csv"],
     { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
 } catch (error) {
   stdout = error.stdout?.toString("utf8") ?? "";
   if (!stdout) throw error;
 }
 const report = JSON.parse(stdout);
+const hits = await readFile("build/v02/hits.csv");
+const hitLines = hits.toString("utf8").split("\n").length - 2;
+report.output_digests = { hits: digest(hits) };
 report.input_digests = {
   scene: digest(inputs[0]),
   renderer: digest(inputs[1]),
@@ -31,6 +34,7 @@ report.input_digests = {
 };
 await writeFile("build/v02/report.json", JSON.stringify(report, null, 2) + "\n");
 assert.equal(report.case_count, 40);
+assert.equal(hitLines, report.samples * 4);
 assert.equal(report.mismatches, 0);
 assert.equal(report.mutations_detected, report.mutations_total);
 assert.ok(report.samples >= 43560);

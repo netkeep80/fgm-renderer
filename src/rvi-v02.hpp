@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,10 @@ struct Hit {
   double depth = 0;
   std::string fragment, material;
 };
+struct Pixel {
+  std::vector<Hit> samples;
+  double coverage = 0.0;
+};
 Vec point_on(const Ray& ray, double t);
 Ray global_ray(const Camera& camera, const Sample& sample);
 std::vector<Scene> load_scenes(const std::string& path);
@@ -40,4 +45,6 @@ Hit render_cell(const Scene& scene, const Ray& ray,
                 int* root_count = nullptr, bool ignore_owner = false);
 Hit render_recursive(const Scene& scene, const Ray& ray,
                      int levels, bool reverse = false);
+Pixel render_pixel(const Scene& scene, const Camera& camera, int x, int y,
+                   int levels, const std::vector<std::array<double,2>>& offsets);
 } // namespace rvi

@@ -177,6 +177,18 @@ Hit render_recursive(const Scene& scene,const Ray& ray,int levels,bool reverse) 
   for (const auto& h:parent_hits) total=compose(std::move(total),h);
   return total;
 }
+Pixel render_pixel(const Scene& scene, const Camera& camera, int x, int y,
+                   int levels, const std::vector<std::array<double,2>>& offsets) {
+  if (offsets.empty()) throw std::invalid_argument("E_EMPTY_SAMPLES");
+  Pixel result;
+  for (const auto& offset:offsets) {
+    const Ray ray=global_ray(camera,{x,y,offset[0],offset[1]});
+    const Hit hit=render_recursive(scene,ray,levels);
+    if (hit.found) result.coverage += 1.0/static_cast<double>(offsets.size());
+    result.samples.push_back(hit);
+  }
+  return result;
+}
 std::vector<Scene> load_scenes(const std::string& path) {
   std::ifstream stream(path);
   if (!stream) throw std::runtime_error("E_FIXTURE_OPEN");
