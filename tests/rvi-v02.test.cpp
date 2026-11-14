@@ -167,14 +167,14 @@ bool composition_laws() {
   return true;
 }
 bool verify_semantic_boundaries(const std::vector<rvi::Scene>& scenes) {
-  const auto& sphere=named(scenes,"sphere");
+  const auto sphere=named(scenes,"sphere");
   const auto inside=rvi::semantic_at(sphere,{0.0,0.0,0.0});
   const auto on=rvi::semantic_at(sphere,{0.8,0.0,0.0});
   const auto outside=rvi::semantic_at(sphere,{1.0,0.0,0.0});
-  const auto& box=named(scenes,"box_edges");
+  const auto box=named(scenes,"box_edges");
   const auto box_face=rvi::semantic_at(box,{0.0,0.5,0.0});
   const auto box_in=rvi::semantic_at(box,{0.5,0.5,0.0});
-  const auto& panel=named(scenes,"panel_hole");
+  const auto panel=named(scenes,"panel_hole");
   const auto void_center=rvi::semantic_at(panel,{0,0,0});
   const auto void_wall=rvi::semantic_at(panel,{0.35,0,0});
   const auto actual_wall=rvi::semantic_at(panel,{0.6,0,0});
@@ -274,7 +274,7 @@ int main(int argc,char** argv) {
       ++count;total+=samples;failed+=errors;worst=std::max(worst,local_worst);
     }
     const bool associative=composition_laws();
-    const bool semantic=verify_semantic_boundaries();
+    const bool semantic=verify_semantic_boundaries(scenes);
     const bool ownership=verify_c02_exact_ownership();
     const bool hit_contract=verify_compose_contract();
     const auto neg=targeted_checks(scenes);
