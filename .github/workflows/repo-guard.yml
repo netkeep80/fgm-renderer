@@ -27,6 +27,37 @@ jobs:
         run: node --test tests/document-language.test.mjs
       - name: Verify Russian documentation at exact HEAD
         run: node scripts/check-document-language.mjs
+      - name: Собрать и проверить нативный кадр и браузерный пакет
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y mesa-vulkan-drivers
+          curl -fLsS --retry 3 https://github.com/gfx-rs/wgpu-native/releases/download/v29.0.1.1/wgpu-linux-x86_64-release.zip -o "$RUNNER_TEMP/wgpu.zip"
+          echo "95a4d90c071005a98d03eab348beaa6b07e16eb00d1dcdb9f8348f75eb97ec5a  $RUNNER_TEMP/wgpu.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/wgpu.zip" -d "$RUNNER_TEMP/wgpu"
+          cmake -S . -B build/native -DCMAKE_BUILD_TYPE=Release -DWGPU_ROOT="$RUNNER_TEMP/wgpu"
+          cmake --build build/native --parallel 2
+          mkdir -p "$RUNNER_TEMP/fgm-runtime"
+          XDG_RUNTIME_DIR="$RUNNER_TEMP/fgm-runtime" build/native/fgm_boot web/sphere.fgm.json web/scene.wgsl build/native/sphere.ppm
+
+          git clone --depth 1 --branch 4.0.21 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          test "$(git -C "$RUNNER_TEMP/emsdk" rev-parse HEAD)" = b2436aafa7351ee1b581f15841f1b45ed716a279
+          "$RUNNER_TEMP/emsdk/emsdk" install 4.0.21
+          "$RUNNER_TEMP/emsdk/emsdk" activate 4.0.21
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          emcmake cmake -S . -B build/wasm -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/wasm --parallel 2
+          npm run build
+          FGM_BROWSER_SCREENSHOT=build/browser.png npm run test:browser
+      - name: Сохранить тестовые кадры и браузерную сборку
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fgm-boot
+          path: |
+            build/web/
+            build/native/sphere.ppm
+            build/browser.png
+          if-no-files-found: error
       - name: RepoGuard exact snapshot transition
         uses: netkeep80/repo-guard@74db97791e6da8a75287164f0d0b41579108f114
         with:

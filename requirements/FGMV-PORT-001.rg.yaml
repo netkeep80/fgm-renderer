@@ -1,0 +1,61 @@
+format: repo-guard/requirement-v1
+id: FGMV-PORT-001
+normative: "### FGMV-PORT-001 — Один синтетический пакет FGM должен давать согласованный кадр в нативной сборке и браузере через общее ядро и WGSL. Браузерный путь должен запускать WebAssembly, сообщать об отсутствии WebGPU и восстанавливать устройство после его потери. CI должен собирать обе версии и проверять кадры и диагностику на тестовых данных."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target: {kind: requirement, id: "FGMV-PRODUCT-000"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: ".gitignore"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "CMakeLists.txt"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "package.json"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "package-lock.json"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "tsconfig.json"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "scripts/stage-web.mjs"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "src/native.cpp"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "src/scene.cpp"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "src/scene-size.hpp.in"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "src/scene.hpp"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "src/wasm.cpp"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "web/index.html"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "web/fgm_scene.d.mts"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "web/main.ts"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "web/scene.wgsl"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: ".github/workflows/repo-guard.yml"}
+  - predicates: [verified_by]
+    target: {kind: artifact, path: "tests/browser.test.mjs"}
+  - predicates: [verified_by]
+    target: {kind: artifact, path: "web/sphere.fgm.json"}
+  - predicates: [documents]
+    target: {kind: artifact, path: "docs/v01-boot.md"}
+  - predicates: [documents]
+    target: {kind: artifact, path: "docs/requirements-hierarchy.md"}
+  - predicates: [documents]
+    target: {kind: artifact, path: "README.md"}
+constraints:
+  - id: fgm_boot_browser_execution
+    activation: scoped_change
+    scope:
+      relations: [implemented_by, verified_by]
+    evidence:
+      class: execution
+      key: "execution:tests/browser.test.mjs"
+      verifier: {kind: artifact, path: "tests/browser.test.mjs"}

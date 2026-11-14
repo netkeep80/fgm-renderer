@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "strict": true,
+    "lib": ["ES2022", "DOM"],
+    "types": ["@webgpu/types"],
+    "rootDir": "web",
+    "outDir": "build/web"
+  },
+  "include": ["web/*.ts", "web/*.d.mts"]
+}
