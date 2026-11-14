@@ -37,7 +37,16 @@ std::vector<Event> oracle_events(const rvi::Scene& scene,const rvi::Ray& ray) {
           if (d==0) continue;
           for (double v:{coordinate(lo,axis),coordinate(hi,axis)}) {
             const double t=(v-coordinate(ray.origin,axis))/d;
-            if (t>=0) events.push_back({t,b.id});
+            if (t<0) continue;
+            const auto point=rvi::point_on(ray,t);
+            bool inside_face=true;
+            for (int other=0;other<3;++other) {
+              if (other==axis) continue;
+              const double q=coordinate(point,other);
+              if (q<coordinate(lo,other)-1e-12 || q>coordinate(hi,other)+1e-12)
+                inside_face=false;
+            }
+            if (inside_face) events.push_back({t,b.id});
           }
         }
       };
