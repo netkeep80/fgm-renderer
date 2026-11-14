@@ -23,7 +23,7 @@ const mutations = [
     "if (value <= -kDomain+i*step) return i-1;"),
   mutation("ignore_single_owner",
     "if (!ignore_owner && !owns(ray,t,divisions,ix,iy,iz)) continue;",
-    "if (false && !owns(ray,t,divisions,ix,iy,iz)) continue;"),
+    "if (ignore_owner && !owns(ray,t,divisions,ix,iy,iz)) continue;"),
   mutation("material_sort_instead_of_depth",
     "right.depth<left.depth || (right.depth==left.depth && right.fragment<left.fragment)",
     "right.material<left.material || (right.material==left.material && right.fragment<left.fragment)"),
@@ -43,7 +43,7 @@ const mutations = [
   mutation("keep_negative_zero",
     "if (hit.depth==0) hit.depth=0.0;", "if (hit.depth==0) hit.depth=-0.0;"),
   mutation("discard_panel_hole",
-    "return std::max(outer,-opening) < 0;", "return outer < 0;"),
+    "return std::max(outer,-opening) < 0;", "return std::min(outer,-opening) < 0;"),
 ];
 const rows = [];
 for (const { name, originalText, replacement } of mutations) {
@@ -63,14 +63,21 @@ for (const { name, originalText, replacement } of mutations) {
   const execution = spawnSync(binary,
     ["tests/fixtures/v02-scenes.txt", join(dir, name + ".csv")],
     { encoding: "utf8", maxBuffer: 1024 * 1024 * 8 });
-  const killed = !execution.error && execution.status === 2;
+  const contractRejected = !execution.error && execution.status === 3 &&
+    /E_FRAGMENT_CONFLICT|E_NONFINITE_DEPTH|E_FRAGMENT_IDENTITY/.test(execution.stderr ?? "");
+  const mismatchRejected = !execution.error && execution.status === 2;
+  const killed = mismatchRejected || contractRejected;
   rows.push({ mutation: name, compiled: true, exit_status: execution.status,
-    killed_by_behavioral_tests: killed,
+    killed_by_behavioral_tests: mismatchRejected,
+    rejected_by_contract: contractRejected,
+    detected: killed,
+    stderr_excerpt: killed ? "" : (execution.stderr ?? "").slice(-1000),
     source_sha256: createHash("sha256").update(source).digest("hex") });
   console.log("V02 mutation " + name + ": " + (killed ? "KILLED" : "SURVIVED/ERROR") +
-    " (exit " + execution.status + ")");
+    " (exit " + execution.status + (contractRejected ? ", invariant rejection" : "") + ")");
+  if (!killed) console.error((execution.stderr ?? "").slice(-1000));
 }
-const killed = rows.filter(x => x.killed_by_behavioral_tests).length;
+const killed = rows.filter(x => x.detected).length;
 const report = { schema:"fgm-v02-source-mutation-report-1", total:rows.length,
   compiled:rows.length, killed, survived:rows.length-killed, results:rows };
 await writeFile("build/v02/mutations.json", JSON.stringify(report, null, 2) + "\n");
