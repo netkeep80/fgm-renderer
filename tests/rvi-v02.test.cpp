@@ -82,7 +82,7 @@ std::string hex(uint64_t x) {std::ostringstream s;s<<std::hex<<std::setw(16)<<st
 struct Negative {std::string name;bool detected;};
 std::vector<Negative> mutations(const std::vector<rvi::Scene>& scenes) {
   std::vector<Negative> checks;
-  const auto& s=named(scenes,"sphere");
+  const auto s=named(scenes,"sphere");
   const auto ground=reference(s,center());
   auto cube_entry=ground;cube_entry.depth=2.0;
   checks.push_back({"cube_entry_as_depth",!equal(ground,cube_entry)});
@@ -95,15 +95,15 @@ std::vector<Negative> mutations(const std::vector<rvi::Scene>& scenes) {
   }
   checks.push_back({"local_raster_phase",phase});
   int duplicates=0;
-  const auto& edges=named(scenes,"box_edges");
+  const auto edges=named(scenes,"box_edges");
   for(int i=0;i<4;++i)for(int j=0;j<4;++j)for(int k=0;k<4;++k)
     (void)rvi::render_cell(edges,center(),4,i,j,k,&duplicates,true);
   checks.push_back({"shared_face_double_count",duplicates>1});
-  const auto& overlap=named(scenes,"projection_overlap");
+  const auto overlap=named(scenes,"projection_overlap");
   const auto front=reference(overlap,center());
   checks.push_back({"priority_as_depth",front.found && front.fragment=="near_sphere" &&
        !equal(front,{true,4.5,"far_box","gold"})});
-  const auto& subpixel=named(scenes,"subpixel");
+  const auto subpixel=named(scenes,"subpixel");
   const auto l=reference(subpixel,rvi::global_ray({0,0.1,33,33},{16,16,0.25,0.5}));
   const auto r=reference(subpixel,rvi::global_ray({0,0.1,33,33},{16,16,0.75,0.5}));
   checks.push_back({"early_coverage_average",l.found && r.found && l.fragment!=r.fragment &&
