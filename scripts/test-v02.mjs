@@ -42,6 +42,7 @@ if (report.ok) {
   await rm("build/v02/hits-repeat.csv");
 } else report.reproducibility = { report_identical: false, samples_identical: false };
 await writeFile("build/v02/report.json", JSON.stringify(report, null, 2) + "\n");
+if (!report.ok) console.error("V02_DIAGNOSTICS", JSON.stringify({case_count:report.case_count,mismatches:report.mismatches,composition_laws:report.composition_laws,semantic_boundaries:report.semantic_boundaries,c02_ownership:report.c02_ownership,hit_contract:report.hit_contract,targeted_checks_passed:report.targeted_checks_passed,targeted_checks_total:report.targeted_checks_total,failed_checks:report.targeted_checks?.filter(x=>!x.detected),failed_cases:report.cases?.filter(x=>x.mismatches>0).slice(0,10)}));
 assert.equal(report.case_count, 40);
 assert.equal(report.composition_laws, true);
 assert.equal(report.reproducibility.report_identical, true);
