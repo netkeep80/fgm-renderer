@@ -106,11 +106,15 @@ std::vector<Negative> targeted_checks(const std::vector<rvi::Scene>& scenes) {
   checks.push_back({"local_raster_phase",phase});
   int duplicates=0;
   const auto edges=named(scenes,"box_edges");
+  // The ray must cross genuine box surfaces while remaining strictly
+  // inside the two other axes; a ray grazing the box edge is unoccupied
+  // in point semantics C03 (field == 0 along its entire trajectory).
+  const rvi::Ray boundary_ray{{0.5,0.5,4.0},{0,0,-1}};
   for(int i=0;i<4;++i)for(int j=0;j<4;++j)for(int k=0;k<4;++k)
-    (void)rvi::render_cell(edges,center(),4,i,j,k,&duplicates,true);
+    (void)rvi::render_cell(edges,boundary_ray,4,i,j,k,&duplicates,true);
   int owned=0;
   for(int i=0;i<4;++i)for(int j=0;j<4;++j)for(int k=0;k<4;++k)
-    (void)rvi::render_cell(edges,center(),4,i,j,k,&owned,false);
+    (void)rvi::render_cell(edges,boundary_ray,4,i,j,k,&owned,false);
   checks.push_back({"shared_face_double_count",duplicates>owned && owned==2});
   const auto overlap=named(scenes,"projection_overlap");
   const auto front=reference(overlap,center());
