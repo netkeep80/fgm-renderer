@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 
 await mkdir("build/v02", { recursive: true });
 execFileSync("g++", [
@@ -32,8 +32,20 @@ report.input_digests = {
   renderer: digest(inputs[1]),
   oracle: digest(inputs[2]),
 };
+if (report.ok) {
+  const repeat = execFileSync("build/v02/v02-verify",
+    ["tests/fixtures/v02-scenes.txt", "build/v02/hits-repeat.csv"],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
+  const repeatedHits = await readFile("build/v02/hits-repeat.csv");
+  report.reproducibility = { report_identical: repeat === stdout,
+    samples_identical: digest(repeatedHits) === digest(hits) };
+  await rm("build/v02/hits-repeat.csv");
+} else report.reproducibility = { report_identical: false, samples_identical: false };
 await writeFile("build/v02/report.json", JSON.stringify(report, null, 2) + "\n");
 assert.equal(report.case_count, 40);
+assert.equal(report.composition_laws, true);
+assert.equal(report.reproducibility.report_identical, true);
+assert.equal(report.reproducibility.samples_identical, true);
 assert.equal(hitLines, report.samples * 4);
 assert.equal(report.mismatches, 0);
 assert.equal(report.mutations_detected, report.mutations_total);

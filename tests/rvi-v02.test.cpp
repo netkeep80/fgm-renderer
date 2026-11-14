@@ -145,6 +145,27 @@ std::vector<Negative> mutations(const std::vector<rvi::Scene>& scenes) {
                     !rvi::render_cell(continuous,center(),4,2,2,2).found});
   return checks;
 }
+bool composition_laws() {
+  const std::vector<rvi::Hit> inputs = {
+    {}, {true,2.0,"z","stone"}, {true,1.0,"b","steel"}, {true,1.0,"a","wood"}
+  };
+  const auto identical=[](const rvi::Hit& a,const rvi::Hit& b) {
+    return a.found==b.found &&
+      (!a.found || (a.depth==b.depth && a.fragment==b.fragment && a.material==b.material));
+  };
+  for(const auto& a:inputs)for(const auto& b:inputs)for(const auto& c:inputs) {
+    const auto left=rvi::compose(rvi::compose(a,b),c);
+    const auto right=rvi::compose(a,rvi::compose(b,c));
+    if(!identical(left,right))return false;
+  }
+  std::array<int,4> order{0,1,2,3};
+  do {
+    rvi::Hit h;
+    for(int i:order)h=rvi::compose(h,inputs[static_cast<std::size_t>(i)]);
+    if(!identical(h,{true,1.0,"a","wood"}))return false;
+  }while(std::next_permutation(order.begin(),order.end()));
+  return true;
+}
 } // namespace
 
 int main(int argc,char** argv) {
@@ -203,6 +224,7 @@ int main(int argc,char** argv) {
          <<",\"max_depth_error\":"<<local_worst<<",\"identity_digest\":\""<<hex(hash)<<"\"}";
       ++count;total+=samples;failed+=errors;worst=std::max(worst,local_worst);
     }
+    const bool associative=composition_laws();
     const auto neg=mutations(scenes);
     std::size_t detected=0;
     std::ostringstream negative;
@@ -212,11 +234,12 @@ int main(int argc,char** argv) {
         <<(neg[i].detected?"true":"false")<<"}";
       if(neg[i].detected)++detected;
     }
-    const bool ok=failed==0&&count==40&&detected==neg.size();
+    const bool ok=failed==0&&count==40&&detected==neg.size()&&associative;
     std::cout<<std::setprecision(17)
       <<"{\"schema\":\"fgm-v02-report-1\",\"ok\":"<<(ok?"true":"false")
       <<",\"case_count\":"<<count<<",\"samples\":"<<total
       <<",\"mismatches\":"<<failed<<",\"max_depth_error\":"<<worst
+      <<",\"composition_laws\":"<<(associative?"true":"false")
       <<",\"mutations_detected\":"<<detected<<",\"mutations_total\":"<<neg.size()
       <<",\"cases\":["<<reports.str()<<"],\"negative_tests\":["<<negative.str()<<"]}\n";
     return ok?0:2;
