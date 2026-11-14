@@ -166,6 +166,55 @@ bool composition_laws() {
   }while(std::next_permutation(order.begin(),order.end()));
   return true;
 }
+bool verify_semantic_boundaries(const std::vector<rvi::Scene>& scenes) {
+  const auto& sphere=named(scenes,"sphere");
+  const auto inside=rvi::semantic_at(sphere,{0.0,0.0,0.0});
+  const auto on=rvi::semantic_at(sphere,{0.8,0.0,0.0});
+  const auto outside=rvi::semantic_at(sphere,{1.0,0.0,0.0});
+  const auto& box=named(scenes,"box_edges");
+  const auto box_face=rvi::semantic_at(box,{0.0,0.5,0.0});
+  const auto box_in=rvi::semantic_at(box,{0.5,0.5,0.0});
+  const auto& panel=named(scenes,"panel_hole");
+  const auto void_center=rvi::semantic_at(panel,{0,0,0});
+  const auto void_wall=rvi::semantic_at(panel,{0.35,0,0});
+  const auto actual_wall=rvi::semantic_at(panel,{0.6,0,0});
+  return inside.material=="wood" && inside.contributor=="sphere_a" &&
+      on.material.empty() && on.contributor.empty() &&
+      outside.material.empty() && box_face.material.empty() &&
+      box_in.material=="steel" && void_center.material.empty() &&
+      void_wall.material.empty() && actual_wall.material=="steel";
+}
+bool verify_c02_exact_ownership() {
+  const auto owns=[](double x,int depth,int index) {
+    return rvi::cell_owner(x,depth)==index;
+  };
+  const double zero=0, left=std::nextafter(zero,-1.0), right=std::nextafter(zero,1.0);
+  const double low=-2, high=2, below=std::nextafter(low,-3.0);
+  const double near_high=std::nextafter(high,1.0);
+  return owns(low,2,0) && owns(low,4,0) &&
+         owns(std::nextafter(low,-1.0),2,0) &&
+         owns(below,2,-1) && owns(below,4,-1) &&
+         owns(left,2,0) && owns(zero,2,1) && owns(right,2,1) &&
+         owns(left,4,1) && owns(zero,4,2) && owns(right,4,2) &&
+         owns(-1.0,4,1) && owns(std::nextafter(-1.0,-2.0),4,0) &&
+         owns(std::nextafter(-1.0,0.0),4,1) &&
+         owns(1.0,4,3) && owns(std::nextafter(1.0,-1.0),4,2) &&
+         owns(near_high,2,1) && owns(near_high,4,3) &&
+         owns(high,2,-1) && owns(high,4,-1);
+}
+bool verify_compose_contract() {
+  const rvi::Hit zero{true,-0.0,"a","wood"};
+  const auto norm=rvi::compose({},zero);
+  if (!norm.found || std::signbit(norm.depth)) return false;
+  bool rejects=false;
+  try {
+    (void)rvi::compose({true,1.0,"same","wood"},
+                       {true,1.0,"same","metal"});
+  } catch (const std::invalid_argument& e) {
+    rejects=std::string(e.what())=="E_FRAGMENT_CONFLICT";
+  }
+  return rejects;
+}
 } // namespace
 
 int main(int argc,char** argv) {
@@ -225,6 +274,9 @@ int main(int argc,char** argv) {
       ++count;total+=samples;failed+=errors;worst=std::max(worst,local_worst);
     }
     const bool associative=composition_laws();
+    const bool semantic=verify_semantic_boundaries();
+    const bool ownership=verify_c02_exact_ownership();
+    const bool hit_contract=verify_compose_contract();
     const auto neg=mutations(scenes);
     std::size_t detected=0;
     std::ostringstream negative;
@@ -234,11 +286,14 @@ int main(int argc,char** argv) {
         <<(neg[i].detected?"true":"false")<<"}";
       if(neg[i].detected)++detected;
     }
-    const bool ok=failed==0&&count==40&&detected==neg.size()&&associative;
+    const bool ok=failed==0&&count==40&&detected==neg.size()&&associative&&semantic&&ownership&&hit_contract;
     std::cout<<std::setprecision(17)
       <<"{\"schema\":\"fgm-v02-report-1\",\"ok\":"<<(ok?"true":"false")
       <<",\"case_count\":"<<count<<",\"samples\":"<<total
       <<",\"mismatches\":"<<failed<<",\"max_depth_error\":"<<worst
+      <<",\"semantic_boundaries\":"<<(semantic?"true":"false")
+      <<",\"c02_ownership\":"<<(ownership?"true":"false")
+      <<",\"hit_contract\":"<<(hit_contract?"true":"false")
       <<",\"composition_laws\":"<<(associative?"true":"false")
       <<",\"mutations_detected\":"<<detected<<",\"mutations_total\":"<<neg.size()
       <<",\"cases\":["<<reports.str()<<"],\"negative_tests\":["<<negative.str()<<"]}\n";

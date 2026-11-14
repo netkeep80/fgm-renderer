@@ -12,7 +12,7 @@ namespace rvi {
 namespace {
 constexpr double kDomain = 2.0;
 constexpr double kProbe = 1e-7;
-constexpr double kBoundaryTolerance = 1e-10;
+constexpr double kIntervalTolerance = 1e-10; // Only for inclusive slab candidate intersection.
 
 Vec add(Vec a, Vec b) { return {a.x+b.x, a.y+b.y, a.z+b.z}; }
 Vec sub(Vec a, Vec b) { return {a.x-b.x, a.y-b.y, a.z-b.z}; }
@@ -20,18 +20,25 @@ Vec scale(Vec a, double k) { return {a.x*k, a.y*k, a.z*k}; }
 double dot(Vec a, Vec b) { return a.x*b.x+a.y*b.y+a.z*b.z; }
 double axis(Vec v, int a) { return a == 0 ? v.x : (a == 1 ? v.y : v.z); }
 
-bool in_box(Vec p, Vec lo, Vec hi) {
-  return p.x >= lo.x && p.x <= hi.x &&
-         p.y >= lo.y && p.y <= hi.y &&
-         p.z >= lo.z && p.z <= hi.z;
+// C05: sphere uses hypot - radius; box uses max(abs(local)-half).
+// C03 occupancy is strictly negative. Subtraction is max(outer, -hole).
+double box_field(Vec p, Vec lo, Vec hi) {
+  const Vec center=scale(add(lo,hi),0.5);
+  const Vec half=scale(sub(hi,lo),0.5);
+  const Vec local=sub(p,center);
+  return std::max({std::abs(local.x)-half.x,
+                   std::abs(local.y)-half.y,
+                   std::abs(local.z)-half.z});
 }
 bool inside(const Body& b, Vec p) {
   if (b.kind == Kind::sphere) {
-    const Vec q = sub(p, b.center);
-    return dot(q,q) <= b.radius*b.radius;
+    const Vec q = sub(p,b.center);
+    return std::hypot(q.x,q.y,q.z) - b.radius < 0;
   }
-  if (!in_box(p,b.lower,b.upper)) return false;
-  return b.kind != Kind::panel || !in_box(p,b.hole_lower,b.hole_upper);
+  const double outer=box_field(p,b.lower,b.upper);
+  if (b.kind == Kind::box) return outer < 0;
+  const double opening=box_field(p,b.hole_lower,b.hole_upper);
+  return std::max(outer,-opening) < 0;
 }
 bool slab(const Ray& ray, Vec lo, Vec hi, double& enter, double& leave) {
   enter = -std::numeric_limits<double>::infinity();
@@ -59,17 +66,10 @@ bool actual_interface(const Scene& scene,const Ray& ray,double t,std::string& ma
   material=after.empty()?before:after;
   return !material.empty();
 }
-int owner(double value, int divisions) {
-  const double unit=(value+kDomain)*divisions/(2*kDomain);
-  if (unit < -kBoundaryTolerance || unit > divisions+kBoundaryTolerance)
-    return -1;
-  const double nearest=std::round(unit);
-  const double normalized=std::abs(unit-nearest)<=kBoundaryTolerance ? nearest : unit;
-  return std::clamp(static_cast<int>(std::floor(normalized)),0,divisions-1);
-}
 bool owns(const Ray& ray,double t,int d,int ix,int iy,int iz) {
   const Vec p=point_on(ray,t);
-  return owner(p.x,d)==ix && owner(p.y,d)==iy && owner(p.z,d)==iz;
+  return cell_owner(p.x,d)==ix && cell_owner(p.y,d)==iy &&
+         cell_owner(p.z,d)==iz;
 }
 void roots(const Body& body,const Ray& ray,std::vector<double>& candidates) {
   if (body.kind==Kind::sphere) {
@@ -110,27 +110,54 @@ Ray global_ray(const Camera& camera,const Sample& sample) {
   const double v=(camera.height/2.0-sample.y-sample.offset_y)*camera.pixel_scale;
   return camera.orientation==0 ? Ray{{u,v,4},{0,0,-1}} : Ray{{4,u,v},{-1,0,0}};
 }
-std::string semantic_material(const Scene& scene,Vec point) {
+int cell_owner(double value,int divisions) {
+  if ((divisions!=2 && divisions!=4) || !std::isfinite(value))
+    throw std::invalid_argument("E_CUBE_COORDINATE");
+  // C02 half-open root domain [-2,2), without epsilon or cancellation-prone
+  // normalization (e.g. 2+nextafter(0,-inf) rounds back to 2).
+  if (value < -kDomain || value >= kDomain) return -1;
+  const double step=2*kDomain/divisions;
+  for (int i=1;i<divisions;++i)
+    if (value < -kDomain+i*step) return i-1;
+  return divisions-1;
+}
+Semantic semantic_at(const Scene& scene,Vec point) {
+  if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z))
+    throw std::invalid_argument("E_SEMANTIC_POINT");
   int priority=std::numeric_limits<int>::min();
-  std::string winner, material;
+  Semantic result;
   for (const auto& b:scene.bodies) {
     if (inside(b,point) &&
-        (b.priority>priority || (b.priority==priority && (winner.empty() || b.id<winner)))) {
-      winner=b.id;
+        (b.priority>priority ||
+         (b.priority==priority && (result.contributor.empty() || b.id<result.contributor)))) {
       priority=b.priority;
-      material=b.material;
+      result={b.material,b.id};
     }
   }
-  return material;
+  return result;
+}
+std::string semantic_material(const Scene& scene,Vec point) {
+  return semantic_at(scene,point).material;
 }
 Hit compose(Hit left,Hit right) {
-  if (left.found && (!std::isfinite(left.depth) || left.depth<0))
-    throw std::invalid_argument("E_NONFINITE_DEPTH");
-  if (right.found && (!std::isfinite(right.depth) || right.depth<0))
-    throw std::invalid_argument("E_NONFINITE_DEPTH");
+  const auto canonicalize=[](Hit& hit) {
+    if (!hit.found) { hit=Hit{}; return; }
+    if (!std::isfinite(hit.depth) || hit.depth<0)
+      throw std::invalid_argument("E_NONFINITE_DEPTH");
+    if (hit.fragment.empty() || hit.material.empty())
+      throw std::invalid_argument("E_FRAGMENT_IDENTITY");
+    if (hit.depth==0) hit.depth=0.0; // canonicalize -0.0 before ordering/return
+  };
+  canonicalize(left);
+  canonicalize(right);
   if (!left.found) return right;
   if (!right.found) return left;
-  // No epsilon: the lexicographic key induces a strict associative min.
+  // Equal (depth, identity) must have identical semantic attributes.
+  // Conflicting material is an invalid snapshot, not an order-dependent tie.
+  if (left.depth==right.depth && left.fragment==right.fragment &&
+      left.material!=right.material)
+    throw std::invalid_argument("E_FRAGMENT_CONFLICT");
+  // Strict total ordering of the admissible hit set. Never use epsilon.
   if (right.depth<left.depth || (right.depth==left.depth && right.fragment<left.fragment))
     return right;
   return left;
@@ -151,7 +178,7 @@ Hit render_cell(const Scene& scene,const Ray& ray,
     std::vector<double> candidates;
     roots(b,ray,candidates);
     for (const double t:candidates) {
-      if (t<enter-kBoundaryTolerance || t>leave+kBoundaryTolerance) continue;
+      if (t<enter-kIntervalTolerance || t>leave+kIntervalTolerance) continue;
       std::string material;
       if (!actual_interface(scene,ray,t,material)) continue;
       if (!ignore_owner && !owns(ray,t,divisions,ix,iy,iz)) continue;

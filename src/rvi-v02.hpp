@@ -26,6 +26,9 @@ struct Scene {
   std::string id;
   std::vector<Body> bodies;
 };
+struct Semantic {
+  std::string material, contributor;
+};
 struct Hit {
   bool found = false;
   double depth = 0;
@@ -38,7 +41,9 @@ struct Pixel {
 Vec point_on(const Ray& ray, double t);
 Ray global_ray(const Camera& camera, const Sample& sample);
 std::vector<Scene> load_scenes(const std::string& path);
+Semantic semantic_at(const Scene& scene, Vec point);
 std::string semantic_material(const Scene& scene, Vec point);
+int cell_owner(double value, int divisions);
 Hit compose(Hit left, Hit right);
 Hit render_cell(const Scene& scene, const Ray& ray,
                 int divisions, int ix, int iy, int iz,
