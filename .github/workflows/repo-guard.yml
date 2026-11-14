@@ -29,6 +29,8 @@ jobs:
         run: node scripts/check-document-language.mjs
       - name: Проверить V02 независимым CPU-эталоном
         run: node scripts/test-v02.mjs
+      - name: Проверить реальные мутации CPU-исполнителя V02
+        run: node scripts/mutate-v02.mjs
       - name: Собрать и проверить нативный кадр и браузерный пакет
         run: |
           npm ci
@@ -64,6 +66,7 @@ jobs:
             build/v02/report.json
             build/v02/hits.csv
             build/v02/c05-semantic.json
+            build/v02/mutations.json
           if-no-files-found: error
       - name: RepoGuard exact snapshot transition
         uses: netkeep80/repo-guard@74db97791e6da8a75287164f0d0b41579108f114

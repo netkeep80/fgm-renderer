@@ -90,7 +90,7 @@ uint64_t digest(uint64_t h,const std::string& s) {
 }
 std::string hex(uint64_t x) {std::ostringstream s;s<<std::hex<<std::setw(16)<<std::setfill('0')<<x;return s.str();}
 struct Negative {std::string name;bool detected;};
-std::vector<Negative> mutations(const std::vector<rvi::Scene>& scenes) {
+std::vector<Negative> targeted_checks(const std::vector<rvi::Scene>& scenes) {
   std::vector<Negative> checks;
   const auto s=named(scenes,"sphere");
   const auto ground=reference(s,center());
@@ -135,7 +135,7 @@ std::vector<Negative> mutations(const std::vector<rvi::Scene>& scenes) {
     const auto h=rvi::render_cell(overlap,center(),4,k/16,(k/4)%4,k%4);
     if(h.found)last=h;
   }
-  checks.push_back({"last_wins_not_associative",!equal(front,last)});
+  checks.push_back({"last_wins_incorrect_minimum",!equal(front,last)});
   bool rejects=false;
   try {(void)rvi::compose({}, {true,std::numeric_limits<double>::quiet_NaN(),"bad","bad"});}
   catch(const std::invalid_argument&) {rejects=true;}
@@ -277,7 +277,7 @@ int main(int argc,char** argv) {
     const bool semantic=verify_semantic_boundaries();
     const bool ownership=verify_c02_exact_ownership();
     const bool hit_contract=verify_compose_contract();
-    const auto neg=mutations(scenes);
+    const auto neg=targeted_checks(scenes);
     std::size_t detected=0;
     std::ostringstream negative;
     for(std::size_t i=0;i<neg.size();++i) {
@@ -295,8 +295,8 @@ int main(int argc,char** argv) {
       <<",\"c02_ownership\":"<<(ownership?"true":"false")
       <<",\"hit_contract\":"<<(hit_contract?"true":"false")
       <<",\"composition_laws\":"<<(associative?"true":"false")
-      <<",\"mutations_detected\":"<<detected<<",\"mutations_total\":"<<neg.size()
-      <<",\"cases\":["<<reports.str()<<"],\"negative_tests\":["<<negative.str()<<"]}\n";
+      <<",\"targeted_checks_passed\":"<<detected<<",\"targeted_checks_total\":"<<neg.size()
+      <<",\"cases\":["<<reports.str()<<"],\"targeted_checks\":["<<negative.str()<<"]}\n";
     return ok?0:2;
   }catch(const std::exception& error){std::cerr<<"V02 отказ: "<<error.what()<<"\n";return 3;}
 }

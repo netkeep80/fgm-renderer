@@ -48,8 +48,8 @@ assert.equal(report.reproducibility.report_identical, true);
 assert.equal(report.reproducibility.samples_identical, true);
 assert.equal(hitLines, report.samples * 4);
 assert.equal(report.mismatches, 0);
-assert.equal(report.mutations_detected, report.mutations_total);
+assert.equal(report.targeted_checks_passed, report.targeted_checks_total);
 assert.ok(report.samples >= 43560);
 assert.equal(report.ok, true);
 console.log("V02: " + report.case_count + " scenarios/views, " + report.samples +
-  " samples, " + report.mutations_detected + "/" + report.mutations_total + " negative tests PASS");
+  " samples, " + report.targeted_checks_passed + "/" + report.targeted_checks_total + " targeted checks PASS");

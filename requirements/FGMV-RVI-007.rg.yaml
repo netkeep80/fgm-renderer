@@ -18,6 +18,10 @@ relations:
     target: {kind: artifact, path: "tests/fixtures/v02-scenes.txt"}
   - predicates: [verified_by]
     target: {kind: artifact, path: "scripts/test-v02.mjs"}
+  - predicates: [verified_by]
+    target: {kind: artifact, path: "scripts/mutate-v02.mjs"}
+  - predicates: [verified_by]
+    target: {kind: artifact, path: "tests/v02-c05.test.cpp"}
   - predicates: [documents]
     target: {kind: artifact, path: "docs/v02-cpu.md"}
 constraints:
