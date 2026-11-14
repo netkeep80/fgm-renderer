@@ -27,6 +27,8 @@ jobs:
         run: node --test tests/document-language.test.mjs
       - name: Verify Russian documentation at exact HEAD
         run: node scripts/check-document-language.mjs
+      - name: Проверить V02 независимым CPU-эталоном
+        run: node scripts/test-v02.mjs
       - name: Собрать и проверить нативный кадр и браузерный пакет
         run: |
           npm ci
@@ -57,6 +59,7 @@ jobs:
             build/web/
             build/native/sphere.ppm
             build/browser.png
+            build/v02/report.json
           if-no-files-found: error
       - name: RepoGuard exact snapshot transition
         uses: netkeep80/repo-guard@74db97791e6da8a75287164f0d0b41579108f114
