@@ -48,11 +48,13 @@ struct Request {
 };
 
 struct MapState { bool done = false; bool success = false; };
+struct Validation { bool done = false; bool success = false; };
 
 std::vector<std::uint8_t> render(const std::vector<float>& field, const std::string& shader) {
   Request<WGPUAdapter> adapter_request;
   Request<WGPUDevice> device_request;
   MapState mapped;
+  Validation validation;
   auto instance = own<wgpuInstanceRelease>(wgpuCreateInstance(nullptr));
   auto adapter_callback = WGPU_REQUEST_ADAPTER_CALLBACK_INFO_INIT;
   adapter_callback.mode = WGPUCallbackMode_AllowProcessEvents;
@@ -99,12 +101,25 @@ std::vector<std::uint8_t> render(const std::vector<float>& field, const std::str
   wgsl.code = view(shader);
   auto shader_desc = WGPU_SHADER_MODULE_DESCRIPTOR_INIT;
   shader_desc.nextInChain = &wgsl.chain;
+  wgpuDevicePushErrorScope(device.get(), WGPUErrorFilter_Validation);
   auto module = own<wgpuShaderModuleRelease>(wgpuDeviceCreateShaderModule(device.get(), &shader_desc));
   auto pipeline_desc = WGPU_COMPUTE_PIPELINE_DESCRIPTOR_INIT;
   pipeline_desc.compute.module = module.get();
   pipeline_desc.compute.entryPoint = view("main");
   auto pipeline = own<wgpuComputePipelineRelease>(
       wgpuDeviceCreateComputePipeline(device.get(), &pipeline_desc));
+  auto validation_callback = WGPU_POP_ERROR_SCOPE_CALLBACK_INFO_INIT;
+  validation_callback.mode = WGPUCallbackMode_AllowProcessEvents;
+  validation_callback.userdata1 = &validation;
+  validation_callback.callback = [](WGPUPopErrorScopeStatus status, WGPUErrorType type,
+                                    WGPUStringView, void* data, void*) {
+    auto& state = *static_cast<Validation*>(data);
+    state.success = status == WGPUPopErrorScopeStatus_Success && type == WGPUErrorType_NoError;
+    state.done = true;
+  };
+  wgpuDevicePopErrorScope(device.get(), validation_callback);
+  await(instance.get(), validation, "WebGPU: истекло время проверки шейдера");
+  if (!validation.success) throw std::runtime_error("WebGPU: не удалось проверить шейдер WGSL");
 
   auto layout = own<wgpuBindGroupLayoutRelease>(wgpuComputePipelineGetBindGroupLayout(pipeline.get(), 0));
   WGPUBindGroupEntry entries[] = {WGPU_BIND_GROUP_ENTRY_INIT, WGPU_BIND_GROUP_ENTRY_INIT};

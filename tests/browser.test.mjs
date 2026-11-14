@@ -97,3 +97,25 @@ test("страница объясняет отсутствие WebGPU", { timeou
     assert.match(await status.innerText(), /WebGPU недоступен/);
   });
 });
+
+test("устройство восстанавливается при потере до первого кадра", { timeout: 35000 }, async () => {
+  await runBrowser(async (browser, url) => {
+    const page = await browser.newPage();
+    await page.addInitScript(() => {
+      if (!navigator.gpu) return;
+      const createPipeline = GPUDevice.prototype.createComputePipelineAsync;
+      let first = true;
+      GPUDevice.prototype.createComputePipelineAsync = function (...args) {
+        if (first) {
+          first = false;
+          this.destroy();
+          return Promise.reject(new Error("Устройство потеряно до первого кадра"));
+        }
+        return createPipeline.apply(this, args);
+      };
+    });
+    await page.goto(url);
+    await page.locator("canvas[data-frame='1']").waitFor({ timeout: 25000 });
+    await ready(page, 1);
+  });
+});

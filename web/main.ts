@@ -82,31 +82,35 @@ async function start(scene: Scene, recovering = false) {
   if (!adapter) throw new Error("WebGPU-адаптер недоступен");
   const device = await adapter.requestDevice();
   active = device;
+  void device.lost.then(async info => {
+    if (active !== device) return;
+    active = undefined;
+    reset.disabled = true;
+    if (recovering && info.reason !== "destroyed") {
+      show("WebGPU-устройство снова потеряно. Перезагрузите страницу.", "error");
+      return;
+    }
+    show("Восстанавливаем WebGPU-устройство…", "recovering");
+    try { await start(scene, info.reason !== "destroyed"); }
+    catch (error) { fail(error); }
+  });
   try {
     const pixels = await render(device, scene);
+    if (active !== device) return;
     if (!context) throw new Error("Холст недоступен");
     canvas.width = scene.size;
     canvas.height = scene.size;
     context.putImageData(new ImageData(pixels, scene.size, scene.size), 0, 0);
     canvas.dataset.frame = String(++frame);
+    recovering = false;
     show("Кадр готов", "ready");
     reset.disabled = false;
-    void device.lost.then(async info => {
-      if (active !== device) return;
-      active = undefined;
-      reset.disabled = true;
-      if (recovering && info.reason !== "destroyed") {
-        show("WebGPU-устройство снова потеряно. Перезагрузите страницу.", "error");
-        return;
-      }
-      show("Восстанавливаем WebGPU-устройство…", "recovering");
-      try { await start(scene, info.reason !== "destroyed"); }
-      catch (error) { fail(error); }
-    });
   } catch (error) {
-    active = undefined;
-    device.destroy();
-    throw error;
+    // Потеря устройства может быть объявлена после ошибки команды.
+    if (active === device) {
+      reset.disabled = false;
+      fail(error);
+    }
   }
 }
 
