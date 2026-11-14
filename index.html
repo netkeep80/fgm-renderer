@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FGM · Сфера</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
+    body { margin: 0; min-height: 100svh; display: grid; place-items: center; background: #101722; color: #eff6fa; }
+    main { width: min(86vw, 32rem); margin: 2rem 0; }
+    h1 { margin: 0 0 1rem; font-size: 1.65rem; font-weight: 620; }
+    canvas { display: block; width: 100%; aspect-ratio: 1; height: auto; background: #0f1622; border: 1px solid #334657; image-rendering: pixelated; }
+    footer { display: flex; min-height: 3rem; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .75rem; margin-top: .75rem; }
+    p { margin: 0; color: #a8c2ce; }
+    button { border: 1px solid #41626e; border-radius: .35rem; padding: .55rem .75rem; background: #1c303a; color: inherit; font: inherit; }
+    button:disabled { opacity: .5; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Сфера FGM</h1>
+    <canvas width="128" height="128" aria-label="Срез поля сферы"></canvas>
+    <footer>
+      <p role="status" data-state="loading">Загружаем сцену…</p>
+      <button id="reset" disabled>Перезапустить WebGPU</button>
+    </footer>
+  </main>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
