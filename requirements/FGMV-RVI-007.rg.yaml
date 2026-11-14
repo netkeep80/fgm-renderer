@@ -1,0 +1,35 @@
+format: repo-guard/requirement-v1
+id: FGMV-RVI-007
+normative: "### FGMV-RVI-007 — Воспроизводимость CPU-снимка. Для одинаковых версионированных входов семантической сцены, камеры и набора образцов рендерер должен на одной и той же платформе воспроизводить тот же машинный результат и сохранять семантическую идентичность модели независимо от изменений визуального запроса."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target: {kind: requirement, id: "FGMV-PRODUCT-000"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "src/rvi-v02.hpp"}
+  - predicates: [implemented_by]
+    target: {kind: artifact, path: "src/rvi-v02.cpp"}
+  - predicates: [verified_by]
+    target: {kind: artifact, path: "tests/rvi-v02.test.cpp"}
+  - predicates: [verified_by]
+    target: {kind: artifact, path: "tests/fixtures/v02-scenes.txt"}
+  - predicates: [verified_by]
+    target: {kind: artifact, path: "scripts/test-v02.mjs"}
+  - predicates: [verified_by]
+    target: {kind: artifact, path: "scripts/mutate-v02.mjs"}
+  - predicates: [verified_by]
+    target: {kind: artifact, path: "tests/v02-c05.test.cpp"}
+  - predicates: [documents]
+    target: {kind: artifact, path: "docs/v02-cpu.md"}
+constraints:
+  - id: fgm_rvi_007_cpu_evidence
+    activation: scoped_change
+    scope:
+      relations: [implemented_by, verified_by]
+    evidence:
+      class: execution
+      key: "execution:scripts/test-v02.mjs"
+      verifier: {kind: artifact, path: "scripts/test-v02.mjs"}
